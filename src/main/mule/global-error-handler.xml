@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<!-- <email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="3bc2e311-5913-4f46-a091-5bd9748f230e" headers="" attachments="" subject="Upstart-v1 Customer-Deposit api returned 500 error " config-ref="Email_SMTP" attachmentsContentTransferEncoding="Base64" fromAddress="noreply@customersbank.com">
+		<email:smtp-connection host="192.168.91.90" />
+	</email:smtp-config> -->
+	<error-handler name="global-error-handler" doc:id="2c95a57a-2c37-4501-94cf-29b32e51b3d5" >
+		           <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="dd1b8ee7-46e7-416c-b105-47fc92aa633e" type="HTTP:UNAUTHORIZED">
+			<logger level="INFO" doc:name="Logger" doc:id="a830e744-bfdf-419d-a023-e9aef79b7f89" message="#[error.errorMessage.payload]"/>
+			<ee:transform doc:name="Transform Message" doc:id="479a183e-450e-4ce4-aec7-b3548ba60781" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+if ((error.errorMessage.payload) != null)
+	error.errorMessage.payload 
+else 
+	payload]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[401]]></ee:set-variable>
+					<ee:set-variable variableName="reasonPhrase" ><![CDATA["Unauthorized request"]]></ee:set-variable>
+					<ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}
+
+]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<async doc:name="Async" doc:id="515de7c5-8253-4a63-a18c-4ecfd0093532" >
+			<flow-ref doc:name="log to splunk" doc:id="08c9b26a-0fd3-403b-b467-73e893042fba" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="153e676a-ef61-4c02-aad4-8866dcf07042" name="send-Email-Notification-Sub_Flow" />
+		
+</on-error-propagate>
+		           	<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="55507cb2-72f1-4d8a-8027-82ede0f38669" type="HTTP:FORBIDDEN">
+			<logger level="INFO" doc:name="Logger" doc:id="ccfb6e43-e310-47c6-ac4a-bc280bf461c6" message="#[error.errorMessage.payload]"/>
+			<ee:transform doc:name="Transform Message" doc:id="2d575747-ab60-4fd0-8ca7-5d8055de537b" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+if ((error.errorMessage.payload) != null)
+	error.errorMessage.payload 
+else if (error != null and ((error.errorType.asString) contains "EMPTY"))
+	{
+		Status: 403,
+		Message: "Token is not passed, Please pass the token and try again"
+	}
+else if (error != null and ((error.errorType.asString) contains "TOKEN_NOTPASSED"))
+	{
+		Status: 403,
+		Message: "Token is not valid, Please pass a valid token and try again"
+	}
+else 
+	{
+		Status: 500,
+		Message: error.description
+	}
+]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[403]]></ee:set-variable>
+					<ee:set-variable variableName="reasonPhrase" ><![CDATA["Re-authentication required"]]></ee:set-variable>
+				<ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		<async doc:name="Async" doc:id="129e2196-134d-46f6-a388-82ec24ff8726" >
+			<flow-ref doc:name="log to splunk" doc:id="c42c3412-5db2-407e-8291-33796a3aa81b" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="cd79b2e8-cf81-4fa6-8ac7-9a1fe2812504" name="send-Email-Notification-Sub_Flow" />
+		
+</on-error-propagate>
+		           
+		            <on-error-propagate type="APIKIT:BAD_REQUEST, HTTP:INTERNAL_SERVER_ERROR" enableNotifications="true" logException="true">
+                <logger level="INFO" doc:name="Logger" doc:id="f8ec2fd3-a9d7-472e-a8f6-c8321461e7b5" message="#[error.errorMessage.payload]"/>
+			<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+---
+{
+		"status": 400,
+    	"Message": (error.description),
+    	"Status": 'Failed',
+        "Time": now() 
+}
+
+]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+						<ee:set-variable variableName="reasonPhrase" ><![CDATA["Bad Request"]]></ee:set-variable>
+                    <ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            <async doc:name="Async" doc:id="7b7eb80a-5b60-4d99-b100-36a056021d1a" >
+			<flow-ref doc:name="log to splunk" doc:id="6eca5ba7-23f1-4dc8-8e67-63fbfeb022bc" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="aba5969b-50c9-43e8-8cba-1068f2dcd79e" name="send-Email-Notification-Sub_Flow" />
+            
+</on-error-propagate>
+
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <logger level="INFO" doc:name="Logger" doc:id="d9ea8c91-1907-4fe7-be19-e08b76ce7c08" message="#[error.errorMessage.payload]"/>
+			<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Message: "Method not allowed."
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+						<ee:set-variable variableName="reasonPhrase" ><![CDATA["method not allowed"]]></ee:set-variable>
+                   <ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            <async doc:name="Async" doc:id="d6cea3de-c54e-424b-8723-4eeff40cf846" >
+			<flow-ref doc:name="log to splunk" doc:id="28efeed7-6e62-4eac-85d2-7a1b98572927" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="81092929-f743-49fc-b7e1-a4bad0c1637d" name="send-Email-Notification-Sub_Flow" />
+            
+</on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND" enableNotifications="true" logException="true">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Status": 404,
+    "Message": "Resource not found"
+}
+]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+						<ee:set-variable variableName="reasonPhrase" ><![CDATA[
+"Resource not found"]]></ee:set-variable>
+                   <ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            <async doc:name="Async" doc:id="6b30c15e-efe0-43d6-a338-c06066317284" >
+			<flow-ref doc:name="log to splunk" doc:id="ccbd911b-ef64-450a-b644-cdc5404332f4" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="6e848ef6-32cc-4283-a9ce-1d3cecc2fa36" name="send-Email-Notification-Sub_Flow" />
+            
+</on-error-propagate>
+        
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Unsupported media type."
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+					<ee:set-variable variableName="reasonPhrase" ><![CDATA["Unsupported media type"]]></ee:set-variable>
+                    
+<ee:set-variable variableName="splunkPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+</ee:variables>
+                </ee:transform>
+            <async doc:name="Async" doc:id="c96e3579-5d18-454d-afe3-86f34242d7df" >
+			<flow-ref doc:name="log to splunk" doc:id="a9a7f626-4cf4-441b-8d14-63e924eb3ee6" name="log-to-splunk-Flow"/>
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="6e648a05-9ea6-417c-bab7-5d9325feb467" name="send-Email-Notification-Sub_Flow" />
+            
+</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="40021319-65e0-4ca7-8895-4c7d1461d832" type="HTTP:BAD_REQUEST">
+			<set-variable value="400" doc:name="httpStatus" doc:id="ac87411a-deec-40c2-aa13-5f3e98b6556f" variableName="httpStatus"/>
+			<ee:transform doc:name="Transform Message" doc:id="7476d749-ebbb-48ef-804a-12733d4eed50" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	status:400,
+	message: "Invalid Account Number"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="28047303-e5ed-4bc6-81c1-6001c0a826bf" message="#[payload]"/>
+			<async doc:name="Async" doc:id="88fbbbbe-426a-48aa-864d-d69b8eda4ca3" >
+				<flow-ref doc:name="log to splunk" doc:id="16290a54-aef5-4b41-a9b1-6df73dba6345" name="log-to-splunk-Flow" />
+			</async>
+			<flow-ref doc:name="send-Email" doc:id="a658bfc7-4121-4834-ac68-f2617177b288" name="send-Email-Notification-Sub_Flow" />
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="77a899e9-65dc-4fca-8d07-47dc1ddb2612" type="ANY">
+			<logger level="ERROR" doc:name="Logger" doc:id="daa17e3a-ff5a-4193-bfbe-e89097af9872" />
+			<ee:transform doc:name="Transform Message" doc:id="8e6122ba-c90c-4830-9a1a-7725d8da5a50">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Status: 500,
+	Message: "Internal System Error"
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+					<ee:set-variable variableName="reasonPhrase"><![CDATA["General system error"]]></ee:set-variable>
+				<ee:set-variable variableName="splunkPayload"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"apiName": p('api.name'),
+	"unique-ID": vars.uniqueId,
+	"path": message.attributes.relativePath,
+	"status": "error/fail",
+	"error-message": error.description default null,
+	"description": error.detailedDescription,
+	"payload": error.muleMessage.payload default null,
+	"error-type": error.errorType.identifier default "",
+	"time": (now() >> "America/New_York") ++ "EST"
+}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		<async doc:name="Async" doc:id="da6f0208-518a-4a8b-854c-1c8f654068ba">
+			<flow-ref doc:name="log to splunk" doc:id="6b4f9593-1ee0-443e-ba6b-1e843e5a8696" name="log-to-splunk-Flow" />
+		
+</async>
+			<flow-ref doc:name="send-Email" doc:id="dae94780-7c96-4e40-b9ef-8ed21e890dd6" name="send-Email-Notification-Sub_Flow" />
+		
+</on-error-propagate>
+		
+		</error-handler>
+</mule>

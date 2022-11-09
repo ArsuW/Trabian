@@ -1,0 +1,85 @@
+#%RAML 1.0
+
+title: Trabian API
+mediaType: application/json
+version: 1.0
+protocols:
+  - HTTPS
+traits:
+   common-error-response: !include /common-error-responses.raml
+types:  
+  tokenResponse: !include dataTypes/tokenResponse.raml
+  loginRequest: !include dataTypes/loginRequestDataType.raml
+  accountMaintenanceRequest: !include dataTypes/accountMaintenanceDataType.raml
+  accountMaintenenceResponse: !include dataTypes/accountMaintenenceResponseDataType.raml
+/login:
+  displayName: Login
+
+  is: [common-error-response]
+  post:
+    displayName: /login
+    headers:
+      client_id:
+        description: clientId for users
+        type: string
+        required: true
+
+      client_secret:
+        description: Client secret will be provuded
+        type: string
+        required: true  
+      source: 
+              type: string 
+              description: Vendor name
+              required: true
+      UUID: 
+        type: string
+        description: Unique ID for this request
+        required: false
+    body:
+          application/json:  
+            type: loginRequest          
+            example: !include examples/loginRequestExample.raml
+    responses:
+      200:
+        body:
+          application/json:
+            type: tokenResponse
+            example: !include examples/tokenResponseExample.raml
+
+     
+/account/maintenance:
+  displayName: Account maintenance
+  post:
+    displayName: /account/maintenance
+    headers:
+      client_id:
+        description: Client ID will be provided
+        type: string
+        required: true
+      client_secret:
+        displayName: Client secret will be provided
+        type: string
+        required: true  
+      token:
+        type: string
+        description: Access token received from authentication service 
+        required: true    
+      UUID: 
+        type: string
+        description: Unique ID for this request.
+        required: false      
+    body:
+      application/json:
+        type: accountMaintenanceRequest
+        example: !include examples/accountMaintenanceRequestExample.raml
+    responses:
+   
+      200:
+        description:  A sucess response  for newly created accounts
+        body:
+          application/json:
+            type: accountMaintenenceResponse
+            example: !include examples/accountMaintenanceResponseExample.raml
+
+      

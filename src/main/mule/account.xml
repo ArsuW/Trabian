@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="accountMaintenanceFlow" doc:id="f2f3575b-6099-4487-a522-9dc5697bf148" >
+		<logger level="INFO" doc:name="Logger" doc:id="b264f950-6a51-48dd-8fc5-67c375d07610" message="Start:: Account Balance  Implementation"/>
+		<flow-ref doc:name="check-token-expire" doc:id="4956395e-afcb-4a82-b174-2fd89d87194f" name="token-validation-sub-flow"/>
+		<http:request method="GET" doc:name="accounts" doc:id="86ec2d4e-f8ec-48c1-a9a8-58549b6732f5" config-ref="HTTPS_codeconnect_Request_configuration" path="/accounts">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	AccountNumber : vars.accountNumber
+}]]]></http:query-params>
+		</http:request>
+				<logger level="INFO" doc:name="Account Open Ind" doc:id="1d47c42e-ec0d-4471-842f-04917bb17595" message="AcctOpenInd:: #[payload.accountInfo.Entity.account.AcctOpenInd]"/>
+		<choice doc:name="Choice" doc:id="a42a7f52-dc6a-4b8d-8a57-8486b83c10f6" >
+			<when expression='#[(isEmpty(payload.Entity.account.AcctOpenInd)&#10;&#10; or (upper(payload.Entity.account.AcctOpenInd) == "Z")&#10;&#10; or (upper(payload.Entity.account.PostInd) == "T"))]'>
+				<logger level="INFO" doc:name="Continue to account maintenance" doc:id="1aa24680-d6be-4699-b3a5-6eb4d43905eb" message="Continue to accounts/keywords"/>
+				<set-payload value="#[vars.originalRequest]" doc:name="Set Payload" doc:id="bd7aaf4c-1a47-4703-85b8-591139f400a4" />
+				<ee:transform doc:name="Transform Message" doc:id="eb9a8343-aca8-49d4-9831-59fa8024c1c7">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+
+"DPTxnCde": 380,
+"DPKywrdCde": payload.fields[0].fieldName,
+"DPKywrdVal": payload.fields[0].fieldValue
+
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="d0b1d3ca-f039-4b12-979d-bc2fb8d5be16" message="payload--#[payload]---#[vars.originalRequest.fieldName]"/>
+				<http:request method="POST" doc:name="Request" doc:id="fb5462dc-0d19-4cc4-9b8c-59487f8c50ac" config-ref="HTTPS_codeconnect_Request_configuration" path="{accounts}/keywords">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	accounts : vars.accountNumber
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Response" doc:id="0a4c5474-a737-4b51-abe6-2b85c639dee2" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+ {
+    "accountNumber": payload.Entity.keywords.DPAcctNbr,
+    "fields": [
+        {
+            "fieldName": payload.Entity.keywords.DPKywrdCde,
+            "fieldValue": payload.Entity.keywords.DPKywrdVal,
+            "status": "200",
+            "message": "Success"
+            
+           
+        }
+    ]
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+</when>
+			<when expression='#[!(isEmpty(payload.Entity.account.AcctOpenInd)&#10;&#10; or (upper(payload.Entity.account.AcctOpenInd) == "Z")&#10;&#10; or (upper(payload.Entity.account.PostInd) == "T"))]'>
+				<logger level="INFO" doc:name="No Action" doc:id="7d1f2c31-feb3-44ed-bf87-5039686ff3ea" message="Account is not active stopping the flow"/>
+				<ee:transform doc:name="Response" doc:id="7cc39f8a-d75d-4984-b28e-c84bebead560">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+fun formatDateTime(localTime: DateTime) = localTime as String {format: "yyyy/MM/dd HH:mm:ss.SSS"}
+
+---
+{
+	
+	"requestStatus":"REJECTED",
+	"accountNumber": vars.reqPayload.AccountId,
+	"currencyCode": "USD",
+	"accountStatus": "CLOSED",
+	"Time": formatDateTime(now() >> 'America/New_York') ++ " EDT",
+	"errorMessage": "Account Is Closed"
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Response" doc:id="7085c447-80ae-4da4-bb5e-1357eb5c2a56" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+fun formatDateTime(localTime: DateTime) = localTime as String {format: "yyyy/MM/dd HH:mm:ss.SSS"}
+
+---
+{
+	
+	"RequestStatus":"REJECTED",
+	"AccountId": vars.reqPayload.AccountId,
+	"CurrencyCode": "USD",
+	"AccountStatus": "CLOSED",
+	"Time": formatDateTime(now() >> 'America/New_York') ++ " EDT",
+	"errorMessage": "Account Is Closed"
+}
+]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="f9287f9c-6457-4d22-a8da-7be33a66264f" message="End:: Account Balance  Implementation"/>
+	</flow>
+	<sub-flow name="token-validation-sub-flow" doc:id="ef29cfe0-8d6b-4ac9-8cc9-bdc2c50e9017" >
+		<http:request method="GET" doc:name="Token-Validation" doc:id="c5d4dae7-513e-4394-8d7c-88cc12654627" config-ref="HTTPS_Authentication_Request_configuration" path="/token-validation" responseTimeout="120000">
+			<reconnect frequency="6000"/>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	
+	"time" : attributes.headers.time,
+	"token" : attributes.headers.token,
+	"UUID" : attributes.headers.UUID,
+	"client_id" : attributes.headers.client_id,
+	"client_secret" : attributes.headers.client_secret
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="8e4bf32d-c68f-4c86-bcf6-1865968e660e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

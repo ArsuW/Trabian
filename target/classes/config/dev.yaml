@@ -1,0 +1,64 @@
+https:
+  private:
+    port: "8092"
+    
+api:
+  name: "trabian"
+  id: "18259004"
+  
+  
+  
+  
+    
+# tls configuration
+tls:
+  kpw: "![DoJh9BGRUu9RdXI5jHIqQA==]"
+  pw: "![DoJh9BGRUu9RdXI5jHIqQA==]"
+  
+     
+anypoint.platform.client_secret: "34A926Cf232D41e0b97562332d955455"
+anypoint.platform.client_id: "af80f3c34a0348d7bed470459b8a457e"           
+anypoint.platform.base_uri: "https://anypoint.mulesoft.com"
+anypoint.platform.analytics_base_uri: "https://analytics-ingest.anypoint.mulesoft.com/"
+
+        
+#- Authentication service configuration
+
+authentication:
+  https:
+    host: "devapi.customersbank.com"
+    #host: "0.0.0.0"
+    port: "443"
+    #port: "8092"
+    #path: "/api"
+    path: "/identityprovider/api"
+ 
+    
+  #- CodeConnect configuration
+
+codeconnect:
+  https:
+    host: "devapi.customersbank.com"
+    #host: "localhost"
+    port: "443"
+    path: "/codeconnect-v2"
+  username: "![/lp8BuhUSfjbVKvO1wCBWlfqOP3dpEQS]"
+  password: "![OKogbBf+2rM3nXYWOS5I7NZ3Pj5EXhcM6MNqW14MbX9pLvnmtX8nFw==]"
+
+#email config
+emailSender: "noreply@customersbank.com"
+emailReceiver: "adagn@customersbank.com,btullu@customersbank.com,nsatina@customersbank.com"
+emailSubject: "Error Notification Trabian DEV"
+
+  
+  #splunk config detail:
+  
+splunk:
+  host: "http-inputs-customersbank.splunkcloud.com"
+  port: "443"
+  basePath: "/services"
+  token: "Splunk C23A75F9-8930-4035-BFB4-4685245F50F6"
+  resourcePath: "/collector/raw"
+
+
+
